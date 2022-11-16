@@ -1,10 +1,11 @@
-import Question1.writerInfo
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.event.Logging
 
 import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import java.time.LocalDateTime
 import scala.util.Try
-object Question1 extends App {
+object question1 extends App {
 
   object flush{
     val maxFlushCount = 2
@@ -12,6 +13,9 @@ object Question1 extends App {
     var countwarn = 0
   }
 
+  case class Info(message: String)
+  case class Warn(message: String)
+  case class Error(message: String)
   class actorWithInfo extends Actor with ActorLogging {
 
     import flush._
@@ -19,12 +23,15 @@ object Question1 extends App {
 
     override def receive: Receive = {
 
-      case message: String =>
+      case Info(message) =>
+        log.info(message)
         writeInfo(message)
 
 
-      case message: Int =>
+      case Warn(message) => log.warning(message)
         writeWarn(message)
+
+      case Error(message) => throw new RuntimeException(sender().toString + "error occured in this actor : message " + message)
     }
 
 
@@ -39,23 +46,26 @@ object Question1 extends App {
   }
 
 
-    val writerWarn: BufferedWriter = {
-      val f = new File("src/main/log/applicationWarnNew.log")
-      if (!f.exists()) {
-        f.createNewFile()
-      }
-
-      new BufferedWriter(new FileWriter(f, true))
+  val writerWarn: BufferedWriter = {
+    val f = new File("src/main/log/applicationWarnNew.log")
+    if (!f.exists()) {
+      f.createNewFile()
     }
+
+    new BufferedWriter(new FileWriter(f, true))
+  }
 
   val system = ActorSystem("LoggingQuestion1")
   val sampleActor = system.actorOf(Props(new actorWithInfo))
 
 
-  sampleActor ! "Hi my name is Danish"
-  //sampleActor ! "Hi my name is Tabish"
-  //sampleActor ! "Hi my name is Shahin"
-  sampleActor ! 42
+  sampleActor ! Info("Hi my name is Danish")
+
+  sampleActor ! Warn("Hi my name is Tabish")
+
+  sampleActor ! Warn("Hi my name is Tabish1")
+  sampleActor ! Warn("Hi my name is Tabish2")
+
 
 
 
@@ -74,14 +84,14 @@ object Question1 extends App {
 
   }
 
-  def writeWarn(str: Int) {
+  def writeWarn(str: String) {
 
     writerWarn.write(str)
     writerWarn.newLine()
     countwarn += 1
     if (countwarn > maxFlushCount) {
       writerWarn.flush()
-      Try(new File("src/main/log/applicationWarnNew.log").renameTo(new File("src/main/log/applicationWarnNew1.log"))).getOrElse(false)
+      Try(new File("src/main/log/applicationWarnNew.log").renameTo(new File(s"src/main/log/applicationWarnNew${ LocalDateTime.now()}.log"))).getOrElse(false)
       countwarn = 0
     }
 
@@ -91,5 +101,4 @@ object Question1 extends App {
   writerInfo.close
   writerWarn.close
 
-  }
-
+}
